@@ -66,5 +66,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: <<-SHELL
     apt-get update
     apt-get install -y fail2ban
+    apt install python3-pip -y
+    pip3 install websockets
   SHELL
 end
