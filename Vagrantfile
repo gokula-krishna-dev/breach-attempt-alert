@@ -68,5 +68,7 @@ Vagrant.configure("2") do |config|
     apt-get install -y fail2ban
     apt install python3-pip -y
     pip3 install websockets
+    pip3 install psutil
+    pip3 install pyinotify
   SHELL
 end

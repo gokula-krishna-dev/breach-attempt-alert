@@ -1,32 +1,29 @@
-import re, pyinotify, difflib, psutil, json, os
+import re, pyinotify, difflib, psutil, json, os, asyncio, websockets, socket, time
 from urllib import request
 
-fail2ban_log_file_name = '/var/log/fail2ban.log.1'
+fail2ban_log_file_name = '/var/log/fail.log'
 
-with open(os.getcwd() + '/credentials/messaging.json') as json_file:
-    data = json.load(json_file)
-    print(data['slack-webhooks'])
-
-def send_message_to_slack(text):
-    post = {"text": "{0}".format(text)}
-
+# TODO: reconnect on connection drop
+@asyncio.coroutine
+def send_message_shellwatch(ip='', ban=''):
+    agent_data = {
+        'ip': ip,
+        'host-key': '9e3fa814ac268c254f5ea7ba7cf68cb6',
+        'type': ban,
+        'host': socket.gethostname(),
+        'epoch': time.time()
+    }
+    websocket = yield from websockets.connect('ws://localhost:3000/agent')
     try:
-        json_data = json.dumps(post)
-        req = request.Request("https://hooks.slack.com/services/" + data['slack-webhooks'],
-                              data=json_data.encode('ascii'),
-                              headers={'Content-Type': 'application/json'})
-        resp = request.urlopen(req)
-    except Exception as em:
-        print("EXCEPTION: " + str(em))
-
+        yield from websocket.send(json.dumps(agent_data))
+    finally:
+        yield from websocket.close()
 
 def filter_new_lines(line=''):
     return line.startswith('+ ')
 
-
 def convert_delta_to_raw(line=''):
     return line.replace('+ ', '', 1).rstrip()
-
 
 class FileMonitors(pyinotify.ProcessEvent):
     ban_regex_log = '(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3})\sfail2ban.actions:\sWARNING\s\[ssh\]\sBan\s(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
@@ -65,15 +62,18 @@ class FileMonitors(pyinotify.ProcessEvent):
         fail2ban_file_pointer.close()
 
     def detect_ban_unban_logic(self, lines):
-        lines.rstrip()
         for line in lines:
+            line.rstrip()
+            print(line)
             ban_match = re.search(self.ban_regex_log, line)
             if ban_match:
                 self.banned_hosts.append(ban_match.group(2))
+                asyncio.get_event_loop().run_until_complete(send_message_shellwatch(ban_match.group(2), 'ban'))
 
             unban_match = re.search(self.unban_regex_log, line)
             if unban_match:
                 del self.banned_hosts[self.banned_hosts.index(unban_match.group(2))]
+                asyncio.get_event_loop().run_until_complete(send_message_shellwatch(unban_match.group(2), 'unban'))
 
 def main():
     watch_manager = pyinotify.WatchManager()
