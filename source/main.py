@@ -5,6 +5,7 @@ fail2ban_log_file_name = '/var/log/fail2ban.log'
 
 # TODO: reconnect on connection drop
 # TODO: error handlind if the agent is restarted prevent duplicate entries
+# TODO: Pool the Websocket connection
 @asyncio.coroutine
 def send_message_shellwatch(ip='', ban=''):
     agent_data = {
@@ -28,8 +29,8 @@ def convert_delta_to_raw(line=''):
     return line.replace('+ ', '', 1).rstrip()
 
 class FileMonitors(pyinotify.ProcessEvent):
-    ban_regex_log = '(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3})\sfail2ban.actions:\sWARNING\s\[ssh\]\sBan\s(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
-    unban_regex_log = '(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3})\sfail2ban.actions:\sWARNING\s\[ssh\]\sUnban\s(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+    ban_regex_log = '.*fail2ban\.actions.+\[sshd{0,1}\]\s+(Ban)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+    unban_regex_log = '.*fail2ban\.actions.+\[sshd{0,1}\]\s+(Unban)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
     fail2ban_log_file_frame_prev = None
 
     # data structure to track banned hosts
@@ -43,6 +44,7 @@ class FileMonitors(pyinotify.ProcessEvent):
     def parse_banned_users(self):
         fail2ban_file_pointer = open(fail2ban_log_file_name, 'r')
         self.fail2ban_log_file_frame_prev = fail2ban_file_pointer.readlines()
+
         self.detect_ban_unban_logic(self.fail2ban_log_file_frame_prev)
 
         fail2ban_file_pointer.close()
