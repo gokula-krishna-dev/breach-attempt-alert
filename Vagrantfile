@@ -12,7 +12,7 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  config.vm.box = "bento/ubuntu-18.04"
+  config.vm.box = "bento/ubuntu-20.04"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -70,5 +70,8 @@ Vagrant.configure("2") do |config|
     pip3 install websockets
     pip3 install psutil
     pip3 install pyinotify
+    wget https://golang.org/dl/go1.16.2.linux-amd64.tar.gz
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.2.linux-amd64.tar.gz
+    echo "export PATH=$PATH:/usr/local/go/bin" > /etc/environment
   SHELL
 end
